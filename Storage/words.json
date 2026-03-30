@@ -1,0 +1,22 @@
+[
+  {
+    "WordId": "b7622842-692d-46aa-9323-584a258cf56d",
+    "English": "all",
+    "Uzbek": "hammasi",
+    "CreatedDate": "2026-03-30T12:43:34.3497618+05:00",
+    "Deadline": null,
+    "IsLearned": false,
+    "RepeatCount": 0,
+    "LastAskedTime": null
+  },
+  {
+    "WordId": "99e5fd5c-7e3e-4ade-95d9-010e4e301098",
+    "English": "building",
+    "Uzbek": "bino",
+    "CreatedDate": "2026-03-30T12:43:45.7549219+05:00",
+    "Deadline": null,
+    "IsLearned": false,
+    "RepeatCount": 0,
+    "LastAskedTime": null
+  }
+]
