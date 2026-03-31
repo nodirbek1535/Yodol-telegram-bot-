@@ -45,6 +45,8 @@ namespace Yodol_telegram_bot_
             _logger.LogInformation("🤖 Bot ishga tushdi!");
 
             // app yopilmaguncha ishlaydi
+            _ = Task.Run(() => ReminderLoop(stoppingToken));
+
             await Task.Delay(-1, stoppingToken);
         }
 
@@ -77,7 +79,9 @@ namespace Yodol_telegram_bot_
                 }
                 else if (text == "/all")
                 {
-                    var words = service.GetAllWords();
+                    var words = service.GetAllWords()
+                        .Where(w => w.ChatId == chatId)
+                        .ToList();
 
                     if (!words.Any())
                     {
@@ -110,7 +114,7 @@ namespace Yodol_telegram_bot_
                         var english = parts[0].Trim();
                         var uzbek = parts[1].Trim();
 
-                        var result = service.AddWord(english, uzbek);
+                        var result = service.AddWord(chatId, english, uzbek);
 
                         string status = result.isNew
                             ? "✅ Yangi so‘z qo‘shildi"
@@ -148,6 +152,51 @@ namespace Yodol_telegram_bot_
         {
             _logger.LogError(exception, "💥 Telegram xato");
             return Task.CompletedTask;
+        }
+        private async Task ReminderLoop(CancellationToken token)
+        {
+            var service = new WordService();
+
+            while (!token.IsCancellationRequested)
+            {
+                try
+                {
+                    var allWords = service.GetAllWords();
+
+                    var chatGroups = allWords.GroupBy(w => w.ChatId);
+
+                    foreach (var group in chatGroups)
+                    {
+                        var chatId = group.Key;
+
+                        var today = DateTime.Now.Date;
+
+                        var count = group.Count(w =>
+                            w.CreatedDate.Date == today &&
+                            !w.IsLearned &&
+                            (w.Deadline == null || w.Deadline >= DateTime.Now)
+                        );
+
+                        if (count == 0)
+                            continue;
+
+                        var text = $"⏰ Bugun {count} ta so‘z yodlashing kerak edi";
+
+
+
+                        await _bot.SendMessage(
+                            chatId,
+                            text,
+                            cancellationToken: token);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Reminder error");
+                }
+
+                await Task.Delay(TimeSpan.FromSeconds(10), token);
+            }
         }
 
         private string Escape(string text)

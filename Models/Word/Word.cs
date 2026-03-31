@@ -7,6 +7,7 @@ namespace Yodol_telegram_bot_.Models.Word
     public class Word
     {
         public Guid WordId { get; set; } = Guid.NewGuid();
+        public long ChatId { get; set; }    
         public string English { get; set; } = string.Empty;
         public string Uzbek { get; set; } = string.Empty;
         public DateTime CreatedDate { get; set; } = DateTime.Now;

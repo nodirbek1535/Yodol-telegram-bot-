@@ -31,11 +31,16 @@ namespace Yodol_telegram_bot_.Services.WordService
             File.WriteAllText(_path, json);
         }
 
-        public (Word word, bool isNew) AddWord(string english, string uzbek, DateTime? deadline = null)
+        public (Word word, bool isNew) AddWord(
+            long chatId, 
+            string english, 
+            string uzbek, 
+            DateTime? deadline = null)
         {
             var words = GetAllWords();
 
             var existing = words.FirstOrDefault(w =>
+                w.ChatId == chatId &&
                 w.English.ToLower() == english.ToLower() &&
                 w.Uzbek.ToLower() == uzbek.ToLower());
 
@@ -53,6 +58,7 @@ namespace Yodol_telegram_bot_.Services.WordService
 
             var word = new Word
             {
+                ChatId = chatId,
                 English = english,
                 Uzbek = uzbek,
                 CreatedDate = DateTime.Now,
@@ -115,6 +121,19 @@ namespace Yodol_telegram_bot_.Services.WordService
                 word.RepeatCount++;
                 SaveWords(words);
             }
+        }
+
+        public int GetTodayUnlearnedCount(long chatId)
+        {
+            var today = DateTime.Now.Date;
+
+            return GetAllWords()
+                .Count(w =>
+                    w.ChatId == chatId &&
+                    w.CreatedDate.Date == today &&
+                    !w.IsLearned &&
+                    (w.Deadline == null || w.Deadline >= DateTime.Now)
+                );
         }
     }
 }
