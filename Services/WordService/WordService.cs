@@ -1,139 +1,102 @@
-﻿//===============================================================
-//NODIRBEKNING telegram uchun shaxsiy boti!!!
-//===============================================================
-
 using System.Text.Json;
 using Yodol_telegram_bot_.Models.Word;
 
-namespace Yodol_telegram_bot_.Services.WordService
-{
-    public class WordService
-    {
-        private readonly string _path = "Storage/words.json";
+namespace Yodol_telegram_bot_.Services.WordService;
 
-        public List<Word> GetAllWords()
+public sealed class WordService : IWordService
+{
+    private static readonly Lock FileLock = new();
+    private readonly string _path;
+
+    public WordService()
+    {
+        var storageDirectory = Path.Combine(AppContext.BaseDirectory, "Storage");
+        Directory.CreateDirectory(storageDirectory);
+        _path = Path.Combine(storageDirectory, "words.json");
+    }
+
+    public List<Word> GetAllWords()
+    {
+        lock (FileLock)
         {
             if (!File.Exists(_path))
-                return new List<Word>();
+            {
+                return [];
+            }
 
             var json = File.ReadAllText(_path);
+            return JsonSerializer.Deserialize<List<Word>>(json) ?? [];
+        }
+    }
 
-            return JsonSerializer.Deserialize<List<Word>>(json) ?? new List<Word>();
+    public List<Word> GetChatWords(long chatId)
+    {
+        return GetAllWords().Where(w => w.ChatId == chatId).ToList();
+    }
+
+    public (Word word, bool isNew) AddWord(long chatId, string english, string uzbek, DateTime? deadline = null)
+    {
+        var normalizedEnglish = english.Trim();
+        var normalizedUzbek = uzbek.Trim();
+
+        if (string.IsNullOrWhiteSpace(normalizedEnglish) || string.IsNullOrWhiteSpace(normalizedUzbek))
+        {
+            throw new ArgumentException("English and Uzbek values are required.");
         }
 
-        private void SaveWords(List<Word> words)
+        var words = GetAllWords();
+
+        var existing = words.FirstOrDefault(w =>
+            w.ChatId == chatId &&
+            string.Equals(w.English, normalizedEnglish, StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(w.Uzbek, normalizedUzbek, StringComparison.OrdinalIgnoreCase));
+
+        if (existing is not null)
         {
-            var json = JsonSerializer.Serialize(words, new JsonSerializerOptions
-            {
-                WriteIndented = true
-            });
+            existing.CreatedDate = DateTime.Now;
+            existing.IsLearned = false;
+            existing.Deadline = deadline;
+            existing.LastAskedTime = null;
+            existing.RepeatCount = 0;
 
-            File.WriteAllText(_path, json);
-        }
-
-        public (Word word, bool isNew) AddWord(
-            long chatId, 
-            string english, 
-            string uzbek, 
-            DateTime? deadline = null)
-        {
-            var words = GetAllWords();
-
-            var existing = words.FirstOrDefault(w =>
-                w.ChatId == chatId &&
-                w.English.ToLower() == english.ToLower() &&
-                w.Uzbek.ToLower() == uzbek.ToLower());
-
-            if (existing != null)
-            {
-                existing.CreatedDate = DateTime.Now;
-                existing.IsLearned = false;
-                existing.Deadline = deadline;
-                existing.LastAskedTime = null;
-                existing.RepeatCount = 0;
-
-                SaveWords(words);
-                return (existing, false); // 🔁 update
-            }
-
-            var word = new Word
-            {
-                ChatId = chatId,
-                English = english,
-                Uzbek = uzbek,
-                CreatedDate = DateTime.Now,
-                Deadline = deadline,
-                IsLearned = false,
-                RepeatCount = 0
-            };
-
-            words.Add(word);
             SaveWords(words);
-
-            return (word, true); // ✅ new
+            return (existing, false);
         }
 
-        public List<Word> GetTodayWords()
+        var word = new Word
         {
-            var today = DateTime.Now.Date;
+            ChatId = chatId,
+            English = normalizedEnglish,
+            Uzbek = normalizedUzbek,
+            CreatedDate = DateTime.Now,
+            Deadline = deadline,
+            IsLearned = false,
+            RepeatCount = 0
+        };
 
-            return GetAllWords()
-                .Where(w => w.CreatedDate.Date == today)
-                .ToList();
-        }
+        words.Add(word);
+        SaveWords(words);
 
-        public List<Word> GetWordsForReminder()
+        return (word, true);
+    }
+
+    public int GetTodayUnlearnedCount(long chatId)
+    {
+        var today = DateTime.Now.Date;
+
+        return GetAllWords().Count(w =>
+            w.ChatId == chatId &&
+            w.CreatedDate.Date == today &&
+            !w.IsLearned &&
+            (w.Deadline is null || w.Deadline >= DateTime.Now));
+    }
+
+    private void SaveWords(List<Word> words)
+    {
+        lock (FileLock)
         {
-            var now = DateTime.Now;
-
-            return GetAllWords()
-                .Where(w =>
-                w.IsLearned == false &&
-                w.Deadline != null &&
-                now <= w.Deadline &&
-                (w.LastAskedTime == null || (now - w.LastAskedTime.Value).TotalMinutes >= 120)
-                )
-                .ToList();
-        }
-
-        public void MarkIsLearned(Guid id)
-        {
-            var words = GetAllWords();
-
-            var word = words.FirstOrDefault(w => w.WordId == id);
-
-            if (word != null)
-            {
-                word.IsLearned = true;
-                SaveWords(words);
-            }
-        }
-
-        public void UpdateAsked(Guid id)
-        {
-            var words = GetAllWords();
-
-            var word = words.FirstOrDefault(w => w.WordId == id);
-
-            if(word != null)
-            {
-                word.LastAskedTime = DateTime.Now;
-                word.RepeatCount++;
-                SaveWords(words);
-            }
-        }
-
-        public int GetTodayUnlearnedCount(long chatId)
-        {
-            var today = DateTime.Now.Date;
-
-            return GetAllWords()
-                .Count(w =>
-                    w.ChatId == chatId &&
-                    w.CreatedDate.Date == today &&
-                    !w.IsLearned &&
-                    (w.Deadline == null || w.Deadline >= DateTime.Now)
-                );
+            var json = JsonSerializer.Serialize(words, new JsonSerializerOptions { WriteIndented = true });
+            File.WriteAllText(_path, json);
         }
     }
 }
