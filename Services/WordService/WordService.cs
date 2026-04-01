@@ -10,6 +10,7 @@ namespace Yodol_telegram_bot_.Services.WordService;
 public sealed class WordService : IWordService
 {
     private static readonly object FileLock = new();
+    private static readonly Lock FileLock = new();
     private readonly string _path;
 
     public WordService()

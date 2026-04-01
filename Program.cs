@@ -1,7 +1,3 @@
-//===============================================================
-//NODIRBEKNING telegram uchun shaxsiy boti!!!
-//===============================================================
-
 using Yodol_telegram_bot_;
 using Yodol_telegram_bot_.Options;
 using Yodol_telegram_bot_.Services.WordService;
