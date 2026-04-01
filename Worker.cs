@@ -151,38 +151,7 @@ public sealed class Worker : BackgroundService
                 _logger.LogError(ex, "Reminder xatosi.");
             }
 
-                    foreach (var group in chatGroups)
-                    {
-                        var chatId = group.Key;
-
-                        var today = DateTime.Now.Date;
-
-                        var count = group.Count(w =>
-                            w.CreatedDate.Date == today &&
-                            !w.IsLearned &&
-                            (w.Deadline == null || w.Deadline >= DateTime.Now)
-                        );
-
-                        if (count == 0)
-                            continue;
-
-                        var text = $"⏰ Bugun {count} ta so‘z yodlashing kerak edi";
-
-
-
-                        await _bot.SendMessage(
-                            chatId,
-                            text,
-                            cancellationToken: token);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Reminder error");
-                }
-
-                await Task.Delay(TimeSpan.FromHours(1), token);
-            }
+            await Task.Delay(TimeSpan.FromSeconds(reminderInterval), token);
         }
     }
 
