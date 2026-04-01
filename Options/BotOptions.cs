@@ -1,3 +1,7 @@
+//===============================================================
+//NODIRBEKNING telegram uchun shaxsiy boti!!!
+//===============================================================
+
 namespace Yodol_telegram_bot_.Options;
 
 public sealed class BotOptions

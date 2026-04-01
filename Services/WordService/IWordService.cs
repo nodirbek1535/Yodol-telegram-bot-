@@ -1,3 +1,7 @@
+//===============================================================
+//NODIRBEKNING telegram uchun shaxsiy boti!!!
+//===============================================================
+
 using Yodol_telegram_bot_.Models.Word;
 
 namespace Yodol_telegram_bot_.Services.WordService;
