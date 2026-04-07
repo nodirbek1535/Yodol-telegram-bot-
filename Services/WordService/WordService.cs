@@ -32,9 +32,9 @@ namespace Yodol_telegram_bot_.Services.WordService
         }
 
         public (Word word, bool isNew) AddWord(
-            long chatId, 
-            string english, 
-            string uzbek, 
+            long chatId,
+            string english,
+            string uzbek,
             DateTime? deadline = null)
         {
             var words = GetAllWords();
@@ -115,7 +115,7 @@ namespace Yodol_telegram_bot_.Services.WordService
 
             var word = words.FirstOrDefault(w => w.WordId == id);
 
-            if(word != null)
+            if (word != null)
             {
                 word.LastAskedTime = DateTime.Now;
                 word.RepeatCount++;

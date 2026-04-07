@@ -42,7 +42,7 @@ namespace Yodol_telegram_bot_
                 cancellationToken: stoppingToken
             );
 
-            _logger.LogInformation("🤖 Bot ishga tushdi!");
+            _logger.LogInformation("Bot ishga tushdi!");
 
             // app yopilmaguncha ishlaydi
             _ = Task.Run(() => ReminderLoop(stoppingToken));
@@ -69,7 +69,7 @@ namespace Yodol_telegram_bot_
                 if (string.IsNullOrWhiteSpace(text))
                     return;
 
-                // 🔥 COMMANDLAR
+                //COMMANDLAR
                 if (text.StartsWith("/start"))
                 {
                     await bot.SendMessage(
@@ -195,7 +195,7 @@ namespace Yodol_telegram_bot_
                     _logger.LogError(ex, "Reminder error");
                 }
 
-                await Task.Delay(TimeSpan.FromSeconds(10), token);
+                await Task.Delay(TimeSpan.FromHours(1), token);
             }
         }
 
