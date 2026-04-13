@@ -1,35 +1,68 @@
 [
   {
-    "WordId": "77062ba7-4fb8-4bf2-a45d-8cfe293e4e6e",
-    "ChatId": 6357409700,
-    "English": "ocean",
-    "Uzbek": "dengiz",
-    "CreatedDate": "2026-03-31T21:06:34.4238532+05:00",
-    "Deadline": null,
+    "Id": "2c4e67a4-6f36-4d8f-9541-f597c205d861",
+    "UserTelegramId": 0,
+    "PackageId": "00000000-0000-0000-0000-000000000000",
+    "Original": null,
+    "Translation": null,
     "IsLearned": false,
     "RepeatCount": 0,
-    "LastAskedTime": null
+    "LastAskedTime": null,
+    "CreatedDate": "2026-03-31T21:06:34.4238532+05:00"
   },
   {
-    "WordId": "66173be9-f491-4a4a-9563-411b99619aff",
-    "ChatId": 6357409700,
-    "English": "river",
-    "Uzbek": "daryo",
-    "CreatedDate": "2026-03-31T21:06:46.313727+05:00",
-    "Deadline": null,
+    "Id": "2ca05707-cc36-4a2b-83a1-a487d6e5260b",
+    "UserTelegramId": 0,
+    "PackageId": "00000000-0000-0000-0000-000000000000",
+    "Original": null,
+    "Translation": null,
     "IsLearned": false,
     "RepeatCount": 0,
-    "LastAskedTime": null
+    "LastAskedTime": null,
+    "CreatedDate": "2026-03-31T21:06:46.313727+05:00"
   },
   {
-    "WordId": "783fd852-ba4f-4692-a673-fcfd8457b50d",
-    "ChatId": 6357409700,
-    "English": "all",
-    "Uzbek": "hammasi",
-    "CreatedDate": "2026-03-31T21:06:52.3301795+05:00",
-    "Deadline": null,
+    "Id": "2c75c58a-6d07-499a-a560-20cdcdc27f43",
+    "UserTelegramId": 0,
+    "PackageId": "00000000-0000-0000-0000-000000000000",
+    "Original": null,
+    "Translation": null,
     "IsLearned": false,
     "RepeatCount": 0,
-    "LastAskedTime": null
+    "LastAskedTime": null,
+    "CreatedDate": "2026-03-31T21:06:52.3301795+05:00"
+  },
+  {
+    "Id": "29ff7fef-87c8-41ec-a657-f94524cf8233",
+    "UserTelegramId": 6357409700,
+    "PackageId": "172f94ef-85df-4e88-85dd-fe48b9b905c6",
+    "Original": "apple",
+    "Translation": "olma",
+    "IsLearned": false,
+    "RepeatCount": 0,
+    "LastAskedTime": null,
+    "CreatedDate": "2026-04-13T19:55:57.6845401+05:00"
+  },
+  {
+    "Id": "1dc71c04-e4b7-445d-b8a2-5f70aa54e11d",
+    "UserTelegramId": 6357409700,
+    "PackageId": "356b7fc7-882b-4e70-b33e-b1d792852d4b",
+    "Original": "home",
+    "Translation": "uy",
+    "IsLearned": false,
+    "RepeatCount": 0,
+    "LastAskedTime": null,
+    "CreatedDate": "2026-04-13T20:07:20.2875265+05:00"
+  },
+  {
+    "Id": "430ac95d-aeb8-485e-a824-f0672f5793ad",
+    "UserTelegramId": 6357409700,
+    "PackageId": "f67aba1c-0fe7-4189-9e06-b2e3b69e4bbf",
+    "Original": "all",
+    "Translation": "hamma",
+    "IsLearned": false,
+    "RepeatCount": 0,
+    "LastAskedTime": null,
+    "CreatedDate": "2026-04-13T20:21:37.8128766+05:00"
   }
 ]

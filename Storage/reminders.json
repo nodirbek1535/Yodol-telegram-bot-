@@ -1,0 +1,32 @@
+[
+  {
+    "Id": "cd7ad819-2f00-42c3-95cb-64090b80b70c",
+    "UserTelegramId": 6357409700,
+    "PackageId": "172f94ef-85df-4e88-85dd-fe48b9b905c6",
+    "Interval": "00:30:00",
+    "EndDateTime": "2026-04-14T14:00:00",
+    "LastSentAt": "2026-04-13T21:03:00.72509+05:00",
+    "IsActive": true,
+    "CreatedDate": "2026-04-13T19:56:18.6416079+05:00"
+  },
+  {
+    "Id": "1541bf14-f8d0-4d5c-96ff-538e1c66f929",
+    "UserTelegramId": 6357409700,
+    "PackageId": "356b7fc7-882b-4e70-b33e-b1d792852d4b",
+    "Interval": "00:30:00",
+    "EndDateTime": "2026-04-13T21:00:00",
+    "LastSentAt": "2026-04-13T20:07:41.6588664+05:00",
+    "IsActive": true,
+    "CreatedDate": "2026-04-13T20:07:41.6588664+05:00"
+  },
+  {
+    "Id": "f040bf46-6381-4972-a44f-f5c30d6c1868",
+    "UserTelegramId": 6357409700,
+    "PackageId": "f67aba1c-0fe7-4189-9e06-b2e3b69e4bbf",
+    "Interval": "00:13:00",
+    "EndDateTime": "2026-04-13T22:00:00",
+    "LastSentAt": "2026-04-13T20:21:59.8882651+05:00",
+    "IsActive": true,
+    "CreatedDate": "2026-04-13T20:21:59.8882651+05:00"
+  }
+]
