@@ -28,7 +28,7 @@ namespace Yodol_telegram_bot_.Services.Foundations.Reminders
         public ValueTask<Reminder> AddReminderAsync(Reminder reminder) =>
         TryCatch(async () =>
         {
-            ValidateReminder(reminder);
+            ValidateReminderOnAdd(reminder);
 
             this.loggingBroker.LogInformation(
                 $"Adding reminder. UserTelegramId: {reminder.UserTelegramId}, " +
@@ -101,7 +101,7 @@ namespace Yodol_telegram_bot_.Services.Foundations.Reminders
         public ValueTask<Reminder> ModifyReminderAsync(Reminder reminder) =>
         TryCatch(async () =>
         {
-            ValidateReminder(reminder);
+            ValidateReminderOnModify(reminder);
 
             this.loggingBroker.LogInformation(
                 $"Modifying reminder. Id: {reminder.Id}, " +
