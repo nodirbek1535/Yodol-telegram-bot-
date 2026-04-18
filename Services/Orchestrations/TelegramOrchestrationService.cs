@@ -110,9 +110,17 @@ namespace Yodol_telegram_bot_.Services.Orchestrations
             {
                 await HandleRevealWordAsync(callbackQuery, data);
             }
+            else if (data.StartsWith("rl:"))
+            {
+                await HandleLearnWordsAsync(callbackQuery, data);
+            }
             else if (data.StartsWith("ra:"))
             {
                 await HandleRevealAllWordsAsync(callbackQuery, data);
+            }
+            else if (data.StartsWith("m:"))
+            {
+                await HandleMarkWordLearnedAsync(callbackQuery, data);
             }
             else if (data.StartsWith("p:"))
             {
@@ -706,6 +714,8 @@ namespace Yodol_telegram_bot_.Services.Orchestrations
             }
 
             Guid wordId = Guid.Parse(parts[1]);
+            long chatId = callbackQuery.Message?.Chat.Id ?? 0;
+            int messageId = callbackQuery.Message?.MessageId ?? 0;
 
             Word? word = await this.wordService.RetrieveWordByIdAsync(wordId);
 
@@ -715,9 +725,25 @@ namespace Yodol_telegram_bot_.Services.Orchestrations
                     $"Word revealed. WordId: {wordId}, " +
                     $"Original: {word.Original}.");
 
+                var buttons = new InlineKeyboardMarkup(new[]
+                {
+                    new[]
+                    {
+                        InlineKeyboardButton.WithCallbackData(
+                            "\u2705 O'rganildi",
+                            $"m:{word.Id:N}")
+                    }
+                });
+
+                await this.telegramBroker.EditMessageTextAsync(
+                    chatId,
+                    messageId,
+                    $"\ud83d\udc41 {word.Original} \u2014 {word.Translation}",
+                    replyMarkup: buttons);
+
                 await this.telegramBroker.AnswerCallbackQueryAsync(
                     callbackQuery.Id,
-                    $"\u2705 {word.Original} \u2014 {word.Translation}");
+                    "So'z ochildi.");
             }
         }
 
@@ -751,6 +777,116 @@ namespace Yodol_telegram_bot_.Services.Orchestrations
                 $"\ud83d\udcdd So'zlarni eslang!\n\n" +
                 string.Join("\n", wordLines) +
                 "\n\n\u2705 Hammasi ochildi!");
+        }
+
+        private async ValueTask HandleLearnWordsAsync(
+            CallbackQuery callbackQuery, string data)
+        {
+            string[] parts = data.Split(':');
+
+            if (parts.Length < 2)
+            {
+                return;
+            }
+
+            Guid packageId = Guid.Parse(parts[1]);
+            long chatId = callbackQuery.Message?.Chat.Id ?? 0;
+
+            List<Word> words =
+                await this.wordService.RetrieveWordsByPackageIdAsync(packageId);
+
+            List<Word> unlearnedWords = words
+                .Where(word => !word.IsLearned)
+                .ToList();
+
+            this.loggingBroker.LogInformation(
+                $"Sending learn words list. PackageId: {packageId}, " +
+                $"AllWords: {words.Count}, UnlearnedWords: {unlearnedWords.Count}.");
+
+            if (!unlearnedWords.Any())
+            {
+                await this.telegramBroker.AnswerCallbackQueryAsync(
+                    callbackQuery.Id,
+                    "Bu to'plamdagi hamma so'zlar o'rganilgan.");
+
+                return;
+            }
+
+            await this.telegramBroker.AnswerCallbackQueryAsync(
+                callbackQuery.Id,
+                "Har bir so'z alohida xabar bo'lib yuborildi.");
+
+            var shuffledWords = unlearnedWords
+                .OrderBy(_ => Random.Shared.Next())
+                .ToList();
+
+            for (int i = 0; i < shuffledWords.Count; i++)
+            {
+                Word word = shuffledWords[i];
+                var buttons = new InlineKeyboardMarkup(new[]
+                {
+                    new[]
+                    {
+                        InlineKeyboardButton.WithCallbackData(
+                            "\ud83d\udc41 So'zni ochish",
+                            $"r:{word.Id:N}")
+                    },
+                    new[]
+                    {
+                        InlineKeyboardButton.WithCallbackData(
+                            "\u2705 O'rganildi",
+                            $"m:{word.Id:N}")
+                    }
+                });
+
+                await this.telegramBroker.SendMessageWithInlineAsync(
+                    chatId,
+                    $"{i + 1}\\. ||{EscapeMarkdownV2(word.Original)}|| " +
+                    $"\\- {EscapeMarkdownV2(word.Translation)}",
+                    replyMarkup: buttons,
+                    parseMode: ParseMode.MarkdownV2);
+            }
+        }
+
+        private async ValueTask HandleMarkWordLearnedAsync(
+            CallbackQuery callbackQuery, string data)
+        {
+            string[] parts = data.Split(':');
+
+            if (parts.Length < 2)
+            {
+                return;
+            }
+
+            Guid wordId = Guid.Parse(parts[1]);
+            long chatId = callbackQuery.Message?.Chat.Id ?? 0;
+            int messageId = callbackQuery.Message?.MessageId ?? 0;
+
+            Word? word = await this.wordService.RetrieveWordByIdAsync(wordId);
+
+            if (word is null)
+            {
+                await this.telegramBroker.AnswerCallbackQueryAsync(
+                    callbackQuery.Id,
+                    "So'z topilmadi.");
+
+                return;
+            }
+
+            if (!word.IsLearned)
+            {
+                word.IsLearned = true;
+                await this.wordService.ModifyWordAsync(word);
+            }
+
+            await this.telegramBroker.AnswerCallbackQueryAsync(
+                callbackQuery.Id,
+                "So'z o'rganilgan deb belgilandi.");
+
+            await this.telegramBroker.EditMessageTextAsync(
+                chatId,
+                messageId,
+                $"\u2705 O'rganildi: {word.Original} \u2014 {word.Translation}");
         }
 
         private async ValueTask HandleViewPackageAsync(
@@ -861,20 +997,13 @@ namespace Yodol_telegram_bot_.Services.Orchestrations
                 $"WordCount: {words.Count}, " +
                 $"Elapsed: {elapsed}.");
 
-            var shuffled = words.OrderBy(_ => Random.Shared.Next()).ToList();
-
-            var hiddenLines = shuffled.Select((w, i) =>
-                $"{i + 1}\\. ||{EscapeMarkdownV2(w.Original)}|| " +
-                $"\\- {EscapeMarkdownV2(w.Translation)}");
-
-            var buttons = shuffled.Select((w, i) => new[]
+            var buttons = new List<InlineKeyboardButton[]>
             {
                 InlineKeyboardButton.WithCallbackData(
-                    $"\ud83d\udc41 {i + 1}",
-                    $"r:{w.Id:N}")
-            }).ToList();
-
-            buttons.Add(new[]
+                    "\ud83d\udcd6 So'zlarni o'rganish",
+                    $"rl:{reminder.PackageId:N}")
+            },
+            new[]
             {
                 InlineKeyboardButton.WithCallbackData(
                     "\ud83d\udc40 Hammasini och",
@@ -883,8 +1012,8 @@ namespace Yodol_telegram_bot_.Services.Orchestrations
 
             await this.telegramBroker.SendMessageWithInlineAsync(
                 reminder.UserTelegramId,
-                "\ud83d\udcdd So'zlarni eslang\\!\n\n" +
-                string.Join("\n", hiddenLines),
+                "\ud83d\udd14 Eslatma vaqti\\!\n" +
+                "\ud83d\udcdd So'zlarni ko'rish uchun tugmani bosing\\.",
                 replyMarkup: new InlineKeyboardMarkup(buttons),
                 parseMode: ParseMode.MarkdownV2);
 
