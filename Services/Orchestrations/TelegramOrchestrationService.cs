@@ -3,7 +3,6 @@
 //===============================================================
 
 using System.Globalization;
-using System.Text;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
 using Telegram.Bot.Types.ReplyMarkups;
@@ -21,7 +20,7 @@ using Yodol_telegram_bot_.Services.Foundations.Words;
 
 namespace Yodol_telegram_bot_.Services.Orchestrations
 {
-    public class TelegramOrchestrationService : ITelegramOrchestrationService
+    public partial class TelegramOrchestrationService : ITelegramOrchestrationService
     {
         private readonly IUserService userService;
         private readonly IWordService wordService;
@@ -110,9 +109,17 @@ namespace Yodol_telegram_bot_.Services.Orchestrations
             {
                 await HandleRevealWordAsync(callbackQuery, data);
             }
+            else if (data.StartsWith("rl:"))
+            {
+                await HandleLearnWordsAsync(callbackQuery, data);
+            }
             else if (data.StartsWith("ra:"))
             {
                 await HandleRevealAllWordsAsync(callbackQuery, data);
+            }
+            else if (data.StartsWith("m:"))
+            {
+                await HandleMarkWordLearnedAsync(callbackQuery, data);
             }
             else if (data.StartsWith("p:"))
             {
@@ -693,131 +700,6 @@ namespace Yodol_telegram_bot_.Services.Orchestrations
                 replyMarkup: GetMainMenuKeyboard());
         }
 
-        //CALLBACK HANDLERS
-        private async ValueTask HandleRevealWordAsync(
-            CallbackQuery callbackQuery, string data)
-        {
-            // format: "r:{wordIdN}"
-            string[] parts = data.Split(':');
-
-            if (parts.Length < 2)
-            {
-                return;
-            }
-
-            Guid wordId = Guid.Parse(parts[1]);
-
-            Word? word = await this.wordService.RetrieveWordByIdAsync(wordId);
-
-            if (word is not null)
-            {
-                this.loggingBroker.LogInformation(
-                    $"Word revealed. WordId: {wordId}, " +
-                    $"Original: {word.Original}.");
-
-                await this.telegramBroker.AnswerCallbackQueryAsync(
-                    callbackQuery.Id,
-                    $"\u2705 {word.Original} \u2014 {word.Translation}");
-            }
-        }
-
-        private async ValueTask HandleRevealAllWordsAsync(
-            CallbackQuery callbackQuery, string data)
-        {
-            string[] parts = data.Split(':');
-
-            if (parts.Length < 2)
-            {
-                return;
-            }
-
-            Guid packageId = Guid.Parse(parts[1]);
-            long chatId = callbackQuery.Message?.Chat.Id ?? 0;
-            int messageId = callbackQuery.Message?.MessageId ?? 0;
-
-            List<Word> words =
-                await this.wordService.RetrieveWordsByPackageIdAsync(packageId);
-
-            this.loggingBroker.LogInformation(
-                $"Revealing all words. PackageId: {packageId}, " +
-                $"WordCount: {words.Count}.");
-
-            var wordLines = words.Select((w, i) =>
-                $"{i + 1}. {w.Original} \u2014 {w.Translation}");
-
-            await this.telegramBroker.EditMessageTextAsync(
-                chatId,
-                messageId,
-                $"\ud83d\udcdd So'zlarni eslang!\n\n" +
-                string.Join("\n", wordLines) +
-                "\n\n\u2705 Hammasi ochildi!");
-        }
-
-        private async ValueTask HandleViewPackageAsync(
-            CallbackQuery callbackQuery, string data)
-        {
-            string[] parts = data.Split(':');
-
-            if (parts.Length < 2)
-            {
-                return;
-            }
-
-            Guid packageId = Guid.Parse(parts[1]);
-            long chatId = callbackQuery.Message?.Chat.Id ?? 0;
-
-            WordPackage? package =
-                await this.wordPackageService
-                    .RetrieveWordPackageByIdAsync(packageId);
-
-            if (package is null)
-            {
-                return;
-            }
-
-            List<Word> words =
-                await this.wordService.RetrieveWordsByPackageIdAsync(packageId);
-
-            this.loggingBroker.LogInformation(
-                $"Viewing package. PackageId: {packageId}, " +
-                $"Name: {package.Name}, WordCount: {words.Count}.");
-
-            List<Reminder> reminders =
-                await this.reminderService
-                    .RetrieveRemindersByUserTelegramIdAsync(chatId);
-
-            Reminder? activeReminder = reminders.FirstOrDefault(r =>
-                r.PackageId == packageId && r.IsActive);
-
-            var wordLines = words.Select((w, i) =>
-                $"{i + 1}. {w.Original} \u2014 {w.Translation}");
-
-            string reminderInfo = activeReminder is not null
-                ? $"\n\u23f1 Har {FormatInterval(activeReminder.Interval)} | " +
-                  $"{activeReminder.EndDateTime:dd.MM.yyyy HH:mm} gacha"
-                : "\n\u26a0\ufe0f Eslatma o'rnatilmagan";
-
-            await this.telegramBroker.SendMessageAsync(
-                chatId,
-                $"\ud83d\udce6 {package.Name} ({words.Count} ta so'z)" +
-                $"{reminderInfo}\n\n" +
-                string.Join("\n", wordLines));
-
-            await this.telegramBroker.AnswerCallbackQueryAsync(
-                callbackQuery.Id);
-        }
-
-        private async ValueTask HandleTodayWordsAsync(
-            CallbackQuery callbackQuery)
-        {
-            long chatId = callbackQuery.Message?.Chat.Id ?? 0;
-
-            await HandleShowTodayWordsAsync(chatId);
-
-            await this.telegramBroker.AnswerCallbackQueryAsync(
-                callbackQuery.Id);
-        }
-
         //REMINDER PROCESSING
         private async ValueTask ProcessSingleReminderAsync(
             Reminder reminder, DateTime now)
@@ -861,20 +743,13 @@ namespace Yodol_telegram_bot_.Services.Orchestrations
                 $"WordCount: {words.Count}, " +
                 $"Elapsed: {elapsed}.");
 
-            var shuffled = words.OrderBy(_ => Random.Shared.Next()).ToList();
-
-            var hiddenLines = shuffled.Select((w, i) =>
-                $"{i + 1}\\. ||{EscapeMarkdownV2(w.Original)}|| " +
-                $"\\- {EscapeMarkdownV2(w.Translation)}");
-
-            var buttons = shuffled.Select((w, i) => new[]
+            var buttons = new List<InlineKeyboardButton[]>
             {
                 InlineKeyboardButton.WithCallbackData(
-                    $"\ud83d\udc41 {i + 1}",
-                    $"r:{w.Id:N}")
-            }).ToList();
-
-            buttons.Add(new[]
+                    "\ud83d\udcd6 So'zlarni o'rganish",
+                    $"rl:{reminder.PackageId:N}")
+            },
+            new[]
             {
                 InlineKeyboardButton.WithCallbackData(
                     "\ud83d\udc40 Hammasini och",
@@ -883,8 +758,8 @@ namespace Yodol_telegram_bot_.Services.Orchestrations
 
             await this.telegramBroker.SendMessageWithInlineAsync(
                 reminder.UserTelegramId,
-                "\ud83d\udcdd So'zlarni eslang\\!\n\n" +
-                string.Join("\n", hiddenLines),
+                "\ud83d\udd14 Eslatma vaqti\\!\n" +
+                "\ud83d\udcdd So'zlarni ko'rish uchun tugmani bosing\\.",
                 replyMarkup: new InlineKeyboardMarkup(buttons),
                 parseMode: ParseMode.MarkdownV2);
 
@@ -896,102 +771,5 @@ namespace Yodol_telegram_bot_.Services.Orchestrations
                 $"NextReminderAt: ~{now.Add(reminder.Interval):HH:mm}.");
         }
 
-        //HELPERS
-        private static string BuildHiddenWordList(List<Word> words)
-        {
-            var builder = new StringBuilder();
-
-            for (int i = 0; i < words.Count; i++)
-            {
-                string original = EscapeMarkdownV2(words[i].Original);
-                string translation = EscapeMarkdownV2(words[i].Translation);
-
-                builder.AppendLine(
-                    $"{i + 1}\\. ||{original}|| \\- {translation}");
-            }
-
-            return builder.ToString().TrimEnd();
-        }
-
-        private static string EscapeMarkdownV2(string text)
-        {
-            char[] reserved = new[]
-            {
-                '_', '*', '[', ']', '(', ')', '~', '`', '>',
-                '#', '+', '-', '=', '|', '{', '}', '.', '!'
-            };
-
-            var builder = new StringBuilder();
-
-            foreach (char c in text)
-            {
-                if (c == '\\' || Array.IndexOf(reserved, c) >= 0)
-                {
-                    builder.Append('\\');
-                }
-
-                builder.Append(c);
-            }
-
-            return builder.ToString();
-        }
-
-        private static TimeSpan? ParseCustomInterval(string input)
-        {
-            input = input.Trim().ToLower();
-
-            if (input.EndsWith("daq"))
-            {
-                string num = input.Replace("daq", "").Trim();
-
-                if (double.TryParse(num, out double minutes))
-                {
-                    return TimeSpan.FromMinutes(minutes);
-                }
-            }
-
-            if (input.EndsWith("soat"))
-            {
-                string num = input.Replace("soat", "").Trim();
-
-                if (double.TryParse(num, out double hours))
-                {
-                    return TimeSpan.FromHours(hours);
-                }
-            }
-
-            // faqat raqam kiritilsa — daqiqa deb qabul qilinadi
-            if (double.TryParse(input, out double rawMinutes))
-            {
-                return TimeSpan.FromMinutes(rawMinutes);
-            }
-
-            return null;
-        }
-
-        private static string FormatInterval(TimeSpan interval)
-        {
-            if (interval.TotalMinutes < 60)
-            {
-                return $"{(int)interval.TotalMinutes} daqiqada";
-            }
-
-            if (interval.TotalHours % 1 == 0)
-            {
-                return $"{(int)interval.TotalHours} soatda";
-            }
-
-            return $"{interval.TotalHours:F1} soatda";
-        }
-
-        private static ReplyKeyboardMarkup GetMainMenuKeyboard()
-        {
-            return new ReplyKeyboardMarkup(new[]
-            {
-                new KeyboardButton[] { "\u2795 So'z qo'shish", "\ud83d\udcda So'zlarim" },
-                new KeyboardButton[] { "\ud83d\udcc5 Bugungi so'zlar", "\ud83d\udcca Statistika" },
-            })
-            { ResizeKeyboard = true };
-        }
     }
 }
