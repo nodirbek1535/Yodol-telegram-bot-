@@ -34,5 +34,10 @@ namespace Yodol_telegram_bot_.Brokers.Telegrams
             string text,
             InlineKeyboardMarkup? replyMarkup = null,
             ParseMode parseMode = ParseMode.None);
+
+        ValueTask SendAudioAsync(
+            long chatId,
+            string audioUrl,
+            string? caption = null);
     }
 }

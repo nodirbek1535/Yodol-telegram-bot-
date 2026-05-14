@@ -8,6 +8,8 @@ using Yodol_telegram_bot_.Brokers.Loggings;
 using Yodol_telegram_bot_.Brokers.Storages;
 using Yodol_telegram_bot_.Brokers.Telegrams;
 using Yodol_telegram_bot_.Handlers;
+using Yodol_telegram_bot_.Brokers.Dictionaries;
+using Yodol_telegram_bot_.Services.Foundations.Dictionaries;
 using Yodol_telegram_bot_.Services.Foundations.Reminders;
 using Yodol_telegram_bot_.Services.Foundations.Users;
 using Yodol_telegram_bot_.Services.Foundations.WordPackages;
@@ -42,6 +44,7 @@ static void AddBrokers(IServiceCollection services)
     services.AddTransient<IDateTimeBroker, DateTimeBroker>();
     services.AddSingleton<IStorageBroker, StorageBroker>();
     services.AddSingleton<ITelegramBroker, TelegramBroker>();
+    services.AddHttpClient<IDictionaryBroker, DictionaryBroker>();
 }
 
 static void AddFoundationServices(IServiceCollection services)
@@ -50,6 +53,7 @@ static void AddFoundationServices(IServiceCollection services)
     services.AddTransient<IWordService, WordService>();
     services.AddTransient<IWordPackageService, WordPackageService>();
     services.AddTransient<IReminderService, ReminderService>();
+    services.AddTransient<IDictionaryService, DictionaryService>();
 }
 
 static void AddOrchestrationServices(IServiceCollection services)

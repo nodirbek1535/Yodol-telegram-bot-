@@ -63,11 +63,52 @@ namespace Yodol_telegram_bot_.Services.Orchestrations
                 }
             });
 
+            string text = $"👁 {word.Original} — {word.Translation}";
+            string? audioUrl = null;
+
+            try
+            {
+                var dictionaryEntry = await this.dictionaryService.RetrieveWordDetailsAsync(word.Original);
+                
+                if (dictionaryEntry is not null)
+                {
+                    string? example = dictionaryEntry.Meanings?
+                        .SelectMany(m => m.Definitions)
+                        .FirstOrDefault(d => !string.IsNullOrWhiteSpace(d.Example))?
+                        .Example;
+
+                    if (!string.IsNullOrWhiteSpace(example))
+                    {
+                        text += $"\n\n📝 Misol: {example}";
+                    }
+
+                    audioUrl = dictionaryEntry.Phonetics?
+                        .FirstOrDefault(p => !string.IsNullOrWhiteSpace(p.Audio))?
+                        .Audio;
+                }
+            }
+            catch (Exception ex)
+            {
+                this.loggingBroker.LogError(ex);
+            }
+
             await this.telegramBroker.EditMessageTextAsync(
                 chatId,
                 messageId,
-                $"👁 {word.Original} — {word.Translation}",
+                text,
                 replyMarkup: buttons);
+
+            if (!string.IsNullOrWhiteSpace(audioUrl))
+            {
+                try
+                {
+                    await this.telegramBroker.SendAudioAsync(chatId, audioUrl, word.Original);
+                }
+                catch (Exception ex)
+                {
+                    this.loggingBroker.LogError(ex);
+                }
+            }
 
             await this.telegramBroker.AnswerCallbackQueryAsync(
                 callbackQuery.Id,
@@ -307,11 +348,22 @@ namespace Yodol_telegram_bot_.Services.Orchestrations
                   $"{activeReminder.EndDateTime:dd.MM.yyyy HH:mm} gacha"
                 : "\n⚠️ Eslatma o'rnatilmagan";
 
-            await this.telegramBroker.SendMessageAsync(
+            var buttons = new InlineKeyboardMarkup(new[]
+            {
+                new[]
+                {
+                    InlineKeyboardButton.WithCallbackData(
+                        "🎯 Test ishlash",
+                        $"t:{package.Id:N}")
+                }
+            });
+
+            await this.telegramBroker.SendMessageWithInlineAsync(
                 chatId,
                 $"📦 {package.Name} ({words.Count} ta so'z)" +
                 $"{reminderInfo}\n\n" +
-                string.Join("\n", wordLines));
+                string.Join("\n", wordLines),
+                replyMarkup: buttons);
 
             await this.telegramBroker.AnswerCallbackQueryAsync(callbackQuery.Id);
         }
@@ -324,6 +376,144 @@ namespace Yodol_telegram_bot_.Services.Orchestrations
             await HandleShowTodayWordsAsync(chatId);
 
             await this.telegramBroker.AnswerCallbackQueryAsync(callbackQuery.Id);
+        }
+
+
+        private async ValueTask HandleStartTestAsync(
+            CallbackQuery callbackQuery,
+            string data)
+        {
+            if (!TryParseCallbackGuid(data, "t:", out Guid packageId))
+            {
+                await this.telegramBroker.AnswerCallbackQueryAsync(callbackQuery.Id, "Noto'g'ri so'rov.");
+                return;
+            }
+
+            long chatId = callbackQuery.Message?.Chat.Id ?? 0;
+            if (chatId == 0) return;
+
+            await this.telegramBroker.AnswerCallbackQueryAsync(callbackQuery.Id, "Test boshlandi!");
+            await SendQuizQuestionAsync(chatId, packageId, null);
+        }
+
+        private async ValueTask HandleQuizAnswerAsync(
+            CallbackQuery callbackQuery,
+            string data)
+        {
+            string[] parts = data.Split(':');
+            if (parts.Length != 3 || !Guid.TryParse(parts[1], out Guid wordId))
+            {
+                await this.telegramBroker.AnswerCallbackQueryAsync(callbackQuery.Id, "Noto'g'ri so'rov.");
+                return;
+            }
+
+            bool isCorrect = parts[2] == "1";
+            long chatId = callbackQuery.Message?.Chat.Id ?? 0;
+            int messageId = callbackQuery.Message?.MessageId ?? 0;
+
+            if (chatId == 0 || messageId == 0) return;
+
+            Word? word = await this.wordService.RetrieveWordByIdAsync(wordId);
+            if (word is null)
+            {
+                await this.telegramBroker.AnswerCallbackQueryAsync(callbackQuery.Id, "So'z topilmadi.");
+                return;
+            }
+
+            if (isCorrect)
+            {
+                await this.telegramBroker.AnswerCallbackQueryAsync(callbackQuery.Id, "To'g'ri! ✅");
+                
+                if (!word.IsLearned)
+                {
+                    word.IsLearned = true;
+                    await this.wordService.ModifyWordAsync(word);
+                }
+
+                await SendQuizQuestionAsync(chatId, word.PackageId, messageId);
+            }
+            else
+            {
+                await this.telegramBroker.AnswerCallbackQueryAsync(callbackQuery.Id, "Xato! ❌");
+                
+                var buttons = new InlineKeyboardMarkup(new[]
+                {
+                    new[]
+                    {
+                        InlineKeyboardButton.WithCallbackData(
+                            "Keyingisi ➡️",
+                            $"t:{word.PackageId:N}")
+                    }
+                });
+
+                await this.telegramBroker.EditMessageTextAsync(
+                    chatId,
+                    messageId,
+                    $"❌ Noto'g'ri!\n\n🇬🇧 {word.Original}\n🇺🇿 To'g'ri javob: {word.Translation}",
+                    replyMarkup: buttons);
+            }
+        }
+
+        private async ValueTask SendQuizQuestionAsync(long chatId, Guid packageId, int? messageIdToEdit)
+        {
+            List<Word> packageWords = await this.wordService.RetrieveWordsByPackageIdAsync(packageId);
+            List<Word> allWords = await this.wordService.RetrieveWordsByUserTelegramIdAsync(chatId);
+
+            var unlearned = packageWords.Where(w => !w.IsLearned).ToList();
+            if (!unlearned.Any())
+            {
+                if (messageIdToEdit.HasValue)
+                {
+                    await this.telegramBroker.EditMessageTextAsync(chatId, messageIdToEdit.Value, "🎉 Barcha so'zlarni o'rgandingiz!");
+                }
+                else
+                {
+                    await this.telegramBroker.SendMessageAsync(chatId, "🎉 Barcha so'zlarni o'rgandingiz!");
+                }
+                return;
+            }
+
+            Word questionWord = unlearned[Random.Shared.Next(unlearned.Count)];
+            
+            var wrongOptions = allWords
+                .Where(w => w.Id != questionWord.Id && w.Translation != questionWord.Translation)
+                .OrderBy(w => Random.Shared.Next())
+                .Take(3)
+                .ToList();
+
+            var options = wrongOptions.Select(w => new { Text = w.Translation, IsCorrect = false }).ToList();
+            options.Add(new { Text = questionWord.Translation, IsCorrect = true });
+            
+            options = options.OrderBy(o => Random.Shared.Next()).ToList();
+
+            var inlineKeyboard = new List<InlineKeyboardButton[]>();
+            foreach (var opt in options)
+            {
+                inlineKeyboard.Add(new[]
+                {
+                    InlineKeyboardButton.WithCallbackData(
+                        opt.Text,
+                        $"qa:{questionWord.Id:N}:{(opt.IsCorrect ? "1" : "0")}")
+                });
+            }
+
+            string text = $"🤔 Tarjima qiling:\n\n🇬🇧 {questionWord.Original}";
+
+            if (messageIdToEdit.HasValue)
+            {
+                await this.telegramBroker.EditMessageTextAsync(
+                    chatId,
+                    messageIdToEdit.Value,
+                    text,
+                    replyMarkup: new InlineKeyboardMarkup(inlineKeyboard));
+            }
+            else
+            {
+                await this.telegramBroker.SendMessageWithInlineAsync(
+                    chatId,
+                    text,
+                    replyMarkup: new InlineKeyboardMarkup(inlineKeyboard));
+            }
         }
 
         private static bool TryParseCallbackGuid(

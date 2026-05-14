@@ -3,6 +3,7 @@
 //===============================================================
 
 using Telegram.Bot;
+using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
 using Telegram.Bot.Types.ReplyMarkups;
 
@@ -74,6 +75,17 @@ namespace Yodol_telegram_bot_.Brokers.Telegrams
                 text: text,
                 replyMarkup: replyMarkup,
                 parseMode: parseMode);
+        }
+
+        public async ValueTask SendAudioAsync(
+            long chatId,
+            string audioUrl,
+            string? caption = null)
+        {
+            await this.Client.SendAudio(
+                chatId: chatId,
+                audio: InputFile.FromUri(audioUrl),
+                caption: caption);
         }
     }
 }
