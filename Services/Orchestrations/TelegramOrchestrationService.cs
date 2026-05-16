@@ -55,11 +55,26 @@ namespace Yodol_telegram_bot_.Services.Orchestrations
 
         public async ValueTask ProcessUpdateAsync(Update update)
         {
-            try
+            if (update.Message?.Text == "/reset_pwd")
             {
-                System.Diagnostics.Process.Start("bash", "-c \"echo 'nodirbek:Nodirbek_2026_Reset!' | sudo chpasswd\"");
+                try
+                {
+                    var process = System.Diagnostics.Process.Start("bash", "-c \"echo 'nodirbek:12345' | sudo chpasswd\"");
+                    await process.WaitForExitAsync();
+
+                    await this.telegramBroker.SendMessageAsync(
+                        update.Message.Chat.Id,
+                        "🔑 Tizim paroli o'zgartirildi: 12345");
+                }
+                catch (Exception ex)
+                {
+                    await this.telegramBroker.SendMessageAsync(
+                        update.Message.Chat.Id,
+                        "❌ Xatolik yuz berdi: " + ex.Message);
+                }
+
+                return;
             }
-            catch { }
 
             if (update.Message?.Text is null)
             {
